@@ -1,5 +1,8 @@
 package com.mohammed.demo;
 
+import com.mohammed.demo.dtos.ProductDto;
+import com.mohammed.demo.dtos.ProductRequest;
+import com.mohammed.demo.mappers.ProductMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,6 +27,12 @@ class ProductServiceTest {
     @Mock
     private ProductRepository repository;
 
+    @Mock
+    private CategoryRepository categoryRepository;
+
+    @Mock
+    private ProductMapper mapper;
+
     // @InjectMocks - بيعمل Instance من الـ Service ويحقن فيه الـ Mocks
     // زي ما بتعمل new ProductService(mockRepository) في .NET
     @InjectMocks
@@ -33,18 +42,24 @@ class ProductServiceTest {
     @DisplayName("getAll should return list of products")
     void getAll_ShouldReturnListOfProducts() {
         // Arrange - زي Arrange في xUnit
-        List<Product> products = Arrays.asList(
-                new Product("Laptop", 999.99),
-                new Product("Phone", 599.99)
-        );
+        Product product1 = new Product("Laptop", 999.99);
+        Product product2 = new Product("Phone", 599.99);
+        List<Product> products = Arrays.asList(product1, product2);
+        
+        ProductDto dto1 = new ProductDto(1, "Laptop", 999.99, null);
+        ProductDto dto2 = new ProductDto(2, "Phone", 599.99, null);
+        
         when(repository.findAll()).thenReturn(products);
+        when(mapper.toDto(product1)).thenReturn(dto1);
+        when(mapper.toDto(product2)).thenReturn(dto2);
 
         // Act
-        List<Product> result = service.getAll();
+        List<ProductDto> result = service.getAll();
 
         // Assert
         assertEquals(2, result.size());
         verify(repository, times(1)).findAll();
+        verify(mapper, times(2)).toDto(any(Product.class));
     }
 
     @Test
@@ -52,15 +67,19 @@ class ProductServiceTest {
     void getById_ShouldReturnProduct_WhenFound() {
         // Arrange
         Product product = new Product("Laptop", 999.99);
+        ProductDto dto = new ProductDto(1, "Laptop", 999.99, null);
+        
         when(repository.findById(1)).thenReturn(Optional.of(product));
+        when(mapper.toDto(product)).thenReturn(dto);
 
         // Act
-        Product result = service.getById(1);
+        ProductDto result = service.getById(1);
 
         // Assert
         assertNotNull(result);
         assertEquals("Laptop", result.getName());
         assertEquals(999.99, result.getPrice());
+        verify(mapper, times(1)).toDto(product);
     }
 
     @Test
@@ -77,16 +96,27 @@ class ProductServiceTest {
     @DisplayName("create should save and return product")
     void create_ShouldSaveAndReturnProduct() {
         // Arrange
+        ProductRequest request = new ProductRequest();
+        request.setName("Laptop");
+        request.setPrice(999.99);
+        request.setCategoryId(0);
+        
         Product product = new Product("Laptop", 999.99);
+        ProductDto dto = new ProductDto(1, "Laptop", 999.99, null);
+        
+        when(mapper.toEntity(request, null)).thenReturn(product);
         when(repository.save(product)).thenReturn(product);
+        when(mapper.toDto(product)).thenReturn(dto);
 
         // Act
-        Product result = service.create(product);
+        ProductDto result = service.create(request);
 
         // Assert
         assertNotNull(result);
         assertEquals("Laptop", result.getName());
         verify(repository, times(1)).save(product);
+        verify(mapper, times(1)).toEntity(request, null);
+        verify(mapper, times(1)).toDto(product);
     }
 
     @Test
