@@ -1,0 +1,42 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      # الخطوة الأولى - جيب الكود
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # الخطوة التانية - نصّب Java 21
+      - name: Set up JDK 21
+        uses: actions/setup-java@v3
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      # الخطوة التالتة - Cache الـ Maven Dependencies
+      - name: Cache Maven packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+
+      # الخطوة الرابعة - Build وشغّل الـ Tests
+      - name: Build and Test
+        run: mvn clean test
+
+      # الخطوة الخامسة - عمل الـ JAR
+      - name: Build JAR
+        run: mvn clean package -DskipTests
+
+      # الخطوة السادسة - بني Docker Image
+      - name: Build Docker Image
+        run: docker build -t spring-engineering-journey .
