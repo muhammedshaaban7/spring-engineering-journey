@@ -31,6 +31,9 @@ class ProductServiceTest {
     private CategoryRepository categoryRepository;
 
     @Mock
+    private TagRepository tagRepository;
+
+    @Mock
     private ProductMapper mapper;
 
     // @InjectMocks - بيعمل Instance من الـ Service ويحقن فيه الـ Mocks
@@ -46,8 +49,8 @@ class ProductServiceTest {
         Product product2 = new Product("Phone", 599.99);
         List<Product> products = Arrays.asList(product1, product2);
         
-        ProductDto dto1 = new ProductDto(1, "Laptop", 999.99, null);
-        ProductDto dto2 = new ProductDto(2, "Phone", 599.99, null);
+        ProductDto dto1 = new ProductDto(1, "Laptop", 999.99, null, null);
+        ProductDto dto2 = new ProductDto(2, "Phone", 599.99, null, null);
         
         when(repository.findAll()).thenReturn(products);
         when(mapper.toDto(product1)).thenReturn(dto1);
@@ -67,7 +70,7 @@ class ProductServiceTest {
     void getById_ShouldReturnProduct_WhenFound() {
         // Arrange
         Product product = new Product("Laptop", 999.99);
-        ProductDto dto = new ProductDto(1, "Laptop", 999.99, null);
+        ProductDto dto = new ProductDto(1, "Laptop", 999.99, null, null);
         
         when(repository.findById(1)).thenReturn(Optional.of(product));
         when(mapper.toDto(product)).thenReturn(dto);
@@ -102,9 +105,9 @@ class ProductServiceTest {
         request.setCategoryId(0);
         
         Product product = new Product("Laptop", 999.99);
-        ProductDto dto = new ProductDto(1, "Laptop", 999.99, null);
+        ProductDto dto = new ProductDto(1, "Laptop", 999.99, null, null);
         
-        when(mapper.toEntity(request, null)).thenReturn(product);
+        when(mapper.toEntity(eq(request), eq(null), anySet())).thenReturn(product);
         when(repository.save(product)).thenReturn(product);
         when(mapper.toDto(product)).thenReturn(dto);
 
@@ -115,7 +118,7 @@ class ProductServiceTest {
         assertNotNull(result);
         assertEquals("Laptop", result.getName());
         verify(repository, times(1)).save(product);
-        verify(mapper, times(1)).toEntity(request, null);
+        verify(mapper, times(1)).toEntity(eq(request), eq(null), anySet());
         verify(mapper, times(1)).toDto(product);
     }
 

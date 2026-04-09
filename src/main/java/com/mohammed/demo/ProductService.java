@@ -5,43 +5,47 @@ import com.mohammed.demo.dtos.ProductRequest;
 import com.mohammed.demo.mappers.ProductMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.cache.annotation.CacheEvict;
 
 @Service
 public class ProductService {
 
-    // Logger - زي ILogger في .NET
     private static final Logger log = LoggerFactory.getLogger(ProductService.class);
 
     private final ProductRepository repository;
     private final CategoryRepository categoryRepository;
+    private final TagRepository tagRepository;
     private final ProductMapper mapper;
 
     public ProductService(ProductRepository repository,
                           CategoryRepository categoryRepository,
+                          TagRepository tagRepository,
                           ProductMapper mapper) {
         this.repository = repository;
         this.categoryRepository = categoryRepository;
+        this.tagRepository = tagRepository;
         this.mapper = mapper;
     }
 
-    // @Cacheable - لو البيانات موجودة في Cache مش هيروح للـ Database
-    // زي IMemoryCache.GetOrCreate في .NET
     @Cacheable("products")
     public List<ProductDto> getAll() {
         log.info("Fetching all products from database");
-        return repository.findAll()
+        List<ProductDto> products = repository.findAll()
                 .stream()
                 .map(mapper::toDto)
                 .collect(Collectors.toList());
+        log.info("Found {} products", products.size());
+        return products;
     }
 
     @Cacheable(value = "products", key = "#id")
@@ -55,17 +59,22 @@ public class ProductService {
         return mapper.toDto(product);
     }
 
-    // @CacheEvict - بيمسح الـ Cache لما البيانات بتتغير
-    // زي IMemoryCache.Remove في .NET
     @CacheEvict(value = "products", allEntries = true)
     public ProductDto create(ProductRequest request) {
         log.info("Creating product with name: {}", request.getName());
+
         Category category = null;
         if (request.getCategoryId() != 0) {
             category = categoryRepository.findById(request.getCategoryId())
                     .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + request.getCategoryId()));
         }
-        Product product = mapper.toEntity(request, category);
+
+        Set<Tag> tags = new HashSet<>();
+        if (request.getTagIds() != null && !request.getTagIds().isEmpty()) {
+            tags = tagRepository.findByIdIn(request.getTagIds());
+        }
+
+        Product product = mapper.toEntity(request, category, tags);
         ProductDto saved = mapper.toDto(repository.save(product));
         log.info("Product created successfully with id: {}", saved.getId());
         return saved;
@@ -84,6 +93,11 @@ public class ProductService {
             Category category = categoryRepository.findById(request.getCategoryId())
                     .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + request.getCategoryId()));
             product.setCategory(category);
+        }
+
+        if (request.getTagIds() != null && !request.getTagIds().isEmpty()) {
+            Set<Tag> tags = tagRepository.findByIdIn(request.getTagIds());
+            product.setTags(tags);
         }
 
         ProductDto updated = mapper.toDto(repository.save(product));
